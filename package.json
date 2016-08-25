@@ -1,0 +1,23 @@
+{
+  "name": "traffic-sharding-test",
+  "version": "0.0.1",
+  "description": "Prove that nginx can shard traffic to multiple upstreams",
+  "main": "setup.sh",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:mwolson/traffic-sharding-test.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "fastly",
+    "bash",
+    "shell",
+    "test",
+    "rspec"
+  ],
+  "dependencies": {
+    "barrt": "^1.1.5"
+  },
+  "devDependencies": {}
+}
