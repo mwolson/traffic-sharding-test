@@ -17,7 +17,8 @@
     "rspec"
   ],
   "dependencies": {
-    "barrt": "^1.1.5"
+    "barrt": "^1.1.5",
+    "mustache": "^2.2.1"
   },
   "devDependencies": {}
 }
