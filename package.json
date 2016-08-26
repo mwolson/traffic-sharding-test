@@ -18,6 +18,7 @@
   ],
   "dependencies": {
     "barrt": "^1.1.5",
+    "barrt-curl": "^2.0.0",
     "mustache": "^2.2.1"
   },
   "devDependencies": {}

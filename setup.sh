@@ -3,17 +3,37 @@
 modules=$(dirname "$BASH_SOURCE")/node_modules
 
 . "$modules"/barrt/setup.sh
+. "$modules"/barrt-curl/setup.sh
 
 # Setup
-listen_port=10000
-start_upstream_port=11000
+lb_listen_port=10000
+client_start_port=11000
+num_clients=3
 
 # Initial state
+listen_port=
+nginx_type=
 scenario=
 
+function in_range() {
+    local num=$1
+    local min=$2
+    local max=$3
+    is_numeric "$num" && is_numeric "$min" && is_numeric "$max" && \
+        test $num -ge $min && test $num -le $max
+}
+
 function set_scenario() {
-    scenario=$1
+    scenario=${1}_${2}
+    nginx_type=$2
     nginx_conf="$PWD/scenario/$scenario/etc/nginx/nginx.conf"
+    if test "$nginx_type" = "lb"; then
+        listen_port=$lb_listen_port
+    elif in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 1)); then
+        $((listen_port++))
+    else
+        listen_port=$client_start_port
+    fi
 }
 
 function count_lines() {
@@ -22,6 +42,12 @@ function count_lines() {
 
 function mustache() {
     "$modules"/.bin/mustache "$@"
+}
+
+function clear_nginx_state() {
+    for file in scenario/$scenario/etc/nginx/nginx.conf scenario/$scenario/log/nginx/*.log; do
+        rm -f "$file"
+    done
 }
 
 function render_template_for() {
@@ -34,11 +60,13 @@ function render_nginx_template() {
     render_template_for "$nginx_conf" <<EOF
 {
   "pwd": "$PWD",
+  "scenario": "$scenario",
   "listen_port": "$listen_port",
+  "event_ids": ["a", "b", "c"],
   "upstreams": [
-    "127.0.0.1:$((start_upstream_port))",
-    "127.0.0.1:$((start_upstream_port + 1))",
-    "127.0.0.1:$((start_upstream_port + 2))"
+    "127.0.0.1:$((client_start_port))",
+    "127.0.0.1:$((client_start_port + 1))",
+    "127.0.0.1:$((client_start_port + 2))"
   ]
 }
 EOF
