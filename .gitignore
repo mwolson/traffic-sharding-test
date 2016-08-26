@@ -1,2 +1,4 @@
 /node_modules
+/scenario/**/log/**/*.log
+/scenario/**/run/*.pid
 npm-debug.log
