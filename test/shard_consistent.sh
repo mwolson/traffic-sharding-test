@@ -9,4 +9,8 @@ set_scenario shard_consistent
 it "starts nginx"
 
 render_nginx_template
-check_nginx_conf
+start_nginx
+
+it "stops nginx"
+
+stop_nginx

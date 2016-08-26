@@ -44,7 +44,30 @@ function render_nginx_template() {
 EOF
 }
 
+function expect_nginx_exit_code() {
+    local exit_code=$1
+    local out=$2
+    define_side_a "$exit_code"
+    define_side_a_text "nginx exit code of \"$exit_code\""
+    define_addl_text "nginx output:\n$out"
+}
+
+function run_nginx() {
+    local out=
+    out=$(nginx "$@" -c "$nginx_conf" 2>&1)
+    local exit_code=$?
+    out=$(<<< "$out" grep -v '/var/log/nginx/error.log')
+    expect_nginx_exit_code $exit_code "$out"; to_equal 0
+}
+
 function check_nginx_conf() {
-    local out=$(nginx -t -c "$nginx_conf" 2>&1 | grep -v '/var/log/nginx/error.log')
-    expect "$out"; to_contain "nginx: the configuration file $nginx_conf syntax is ok"
+    run_nginx -t
+}
+
+function start_nginx() {
+    run_nginx
+}
+
+function stop_nginx() {
+    run_nginx -s stop
 }
