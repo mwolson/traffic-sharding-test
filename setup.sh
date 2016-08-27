@@ -12,6 +12,8 @@ num_clients=3
 
 # Initial state
 listen_port=
+nginx_conf=
+nginx_conf_tpl=
 nginx_type=
 scenario=
 
@@ -26,13 +28,18 @@ function in_range() {
 function set_scenario() {
     scenario=${1}_${2}
     nginx_type=$2
-    nginx_conf="$PWD/scenario/$scenario/etc/nginx/nginx.conf"
     if test "$nginx_type" = "lb"; then
+        nginx_conf="$PWD/scenario/$scenario/etc/nginx/nginx.conf"
+        nginx_conf_tpl="${nginx_conf}.tpl"
         listen_port=$lb_listen_port
-    elif in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 1)); then
-        $((listen_port++))
     else
-        listen_port=$client_start_port
+        if in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 1)); then
+            ((listen_port++))
+        else
+            listen_port=$client_start_port
+        fi
+        nginx_conf="$PWD/scenario/$scenario/etc/nginx/${listen_port}-nginx.conf"
+        nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
     fi
 }
 
@@ -45,31 +52,58 @@ function mustache() {
 }
 
 function clear_nginx_state() {
-    for file in scenario/$scenario/etc/nginx/nginx.conf scenario/$scenario/log/nginx/*.log; do
-        rm -f "$file"
-    done
+    if test "$nginx_type" = "lb"; then
+        for file in scenario/$scenario/etc/nginx/*.conf scenario/$scenario/log/nginx/*.log; do
+            rm -f "$file"
+        done
+    else
+        for file in scenario/$scenario/etc/nginx/${listen_port}-*.conf scenario/$scenario/log/nginx/${listen_port}-*.log; do
+            rm -f "$file"
+        done
+    fi
 }
 
-function render_template_for() {
-    local out=$1
-    local tpl=${out}.tpl
+function render_template() {
+    local tpl=$1
+    local out=$2
     mustache - "$tpl" > "$out"
 }
 
-function render_nginx_template() {
-    render_template_for "$nginx_conf" <<EOF
+function list_upstreams() {
+    local idx=0
+    while test $idx -lt $num_clients; do
+        echo "127.0.0.1:$((client_start_port + $idx))"
+        ((idx++))
+    done
+}
+
+function print_nginx_template() {
+    cat <<EOF
 {
   "pwd": "$PWD",
   "scenario": "$scenario",
   "listen_port": "$listen_port",
   "event_ids": ["a", "b", "c"],
   "upstreams": [
-    "127.0.0.1:$((client_start_port))",
-    "127.0.0.1:$((client_start_port + 1))",
-    "127.0.0.1:$((client_start_port + 2))"
+EOF
+    first=y
+    for upstream in $(list_upstreams); do
+        if test -n "$first"; then
+            first=
+        else
+            echo ","
+        fi
+        echo -n "\"${upstream}\""
+    done
+    echo
+    cat <<EOF
   ]
 }
 EOF
+}
+
+function render_nginx_template() {
+    print_nginx_template | render_template "$nginx_conf_tpl" "$nginx_conf"
 }
 
 function expect_nginx_exit_code() {

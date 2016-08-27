@@ -15,12 +15,23 @@ start_nginx
 
 it "starts nginx clients"
 
-set_scenario ${outer_scenario} client
-clear_nginx_state
-render_nginx_template
-start_nginx
+for upstream in $(list_upstreams); do
+    set_scenario ${outer_scenario} client
+    clear_nginx_state
+    render_nginx_template
+    start_nginx
+done
 
-# it "verifies that multiple path patterns with same eventId are sharded together"
+it "verifies that multiple path patterns with same eventId are sharded together"
+
+record_curl http://127.0.0.1:$lb_listen_port/event/a
+expect_http_status; to_equal 200
+
+record_curl http://127.0.0.1:$lb_listen_port/host/a
+expect_http_status; to_equal 200
+
+record_curl http://127.0.0.1:$lb_listen_port/host/fail
+expect_http_status; to_equal 404
 
 it "stops nginx LB"
 
@@ -29,5 +40,7 @@ stop_nginx
 
 it "stops nginx clients"
 
-set_scenario ${outer_scenario} client
-stop_nginx
+for upstream in $(list_upstreams); do
+    set_scenario ${outer_scenario} client
+    stop_nginx
+done

@@ -10,8 +10,8 @@ http {
     access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/access.log;
 
     map $uri $shard_key {
-      ~^/host/(?<event_id>[^/]+)/ $event_id;
-      ~^/event/(?<event_id>[^/]+)/ $event_id;
+      ~^/host/(?<event_id>[^/]+) $event_id;
+      ~^/event/(?<event_id>[^/]+) $event_id;
       default $uri;
     }
 

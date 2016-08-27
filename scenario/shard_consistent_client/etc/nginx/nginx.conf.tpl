@@ -10,8 +10,8 @@ http {
     access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/{{listen_port}}-access.log;
 
     map $uri $event_id {
-      ~^/host/(?<event_id>[^/]+)/ $event_id;
-      ~^/event/(?<event_id>[^/]+)/ $event_id;
+      ~^/host/(?<match>[^/]+) $match;
+      ~^/event/(?<match>[^/]+) $match;
       default $uri;
     }
 
@@ -27,7 +27,7 @@ http {
         root {{{pwd}}}/common/nginx;
 
         location / {
-            try_files $known =404;
+            try_files /$known =404;
         }
     }
 }

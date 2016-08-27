@@ -1,5 +1,5 @@
 /node_modules
-/scenario/**/etc/nginx/nginx.conf
+/scenario/**/etc/nginx/*.conf
 /scenario/**/log/**/*.log
 /scenario/**/run/*.pid
 npm-debug.log
