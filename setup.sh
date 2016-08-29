@@ -77,6 +77,20 @@ function list_upstreams() {
     done
 }
 
+function to_json_array() {
+    local first=y
+    echo "["
+    for item in "$@"; do
+        if test -n "$first"; then
+            first=
+        else
+            echo ","
+        fi
+        echo -n "\"${item}\""
+    done
+    echo -e "\n]"
+}
+
 function print_nginx_template() {
     cat <<EOF
 {
@@ -84,20 +98,7 @@ function print_nginx_template() {
   "scenario": "$scenario",
   "listen_port": "$listen_port",
   "event_ids": ["a", "b", "c"],
-  "upstreams": [
-EOF
-    first=y
-    for upstream in $(list_upstreams); do
-        if test -n "$first"; then
-            first=
-        else
-            echo ","
-        fi
-        echo -n "\"${upstream}\""
-    done
-    echo
-    cat <<EOF
-  ]
+  "upstreams": $(to_json_array $(list_upstreams))
 }
 EOF
 }
