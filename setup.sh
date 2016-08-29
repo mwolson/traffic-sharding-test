@@ -33,7 +33,7 @@ function set_scenario() {
         nginx_conf_tpl="${nginx_conf}.tpl"
         listen_port=$lb_listen_port
     else
-        if in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 1)); then
+        if in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
             ((listen_port++))
         else
             listen_port=$client_start_port
