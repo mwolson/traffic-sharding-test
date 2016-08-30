@@ -19,6 +19,7 @@
   "dependencies": {
     "barrt": "^1.4.0",
     "barrt-curl": "^2.0.0",
+    "barrt-nginx": "0.0.1",
     "mustache": "^2.2.1"
   },
   "devDependencies": {}

@@ -15,7 +15,7 @@ start_nginx
 
 it "starts nginx clients"
 
-for upstream in $(list_upstreams); do
+for upstream in $(list_nginx_upstreams); do
     set_nginx_scenario ${outer_scenario} client
     clear_nginx_state
     render_nginx_template
@@ -46,7 +46,7 @@ stop_nginx
 
 it "stops nginx clients"
 
-for upstream in $(list_upstreams); do
+for upstream in $(list_nginx_upstreams); do
     set_nginx_scenario ${outer_scenario} client
     stop_nginx
 done

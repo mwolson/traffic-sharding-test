@@ -4,6 +4,7 @@ modules=$(dirname "$BASH_SOURCE")/node_modules
 
 . "$modules"/barrt/setup.sh
 . "$modules"/barrt-curl/setup.sh
+. "$modules"/barrt-nginx/setup.sh
 
 # Setup
 lb_listen_port=10000
@@ -12,7 +13,6 @@ num_clients=3
 
 # Initial state
 listen_port=
-nginx_conf=
 nginx_conf_tpl=
 nginx_type=
 prev_listen_port=
@@ -28,8 +28,8 @@ function set_nginx_scenario() {
     scenario=${scenario_base}_${nginx_type}
     prev_listen_port=$listen_port
     if test "$nginx_type" = "lb"; then
-        nginx_conf="$PWD/scenario/$scenario/etc/nginx/nginx.conf"
-        nginx_conf_tpl="${nginx_conf}.tpl"
+        set_nginx_conf "$PWD/scenario/$scenario/etc/nginx/nginx.conf"
+        nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
         listen_port=$lb_listen_port
     else
         if is_between "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
@@ -37,7 +37,7 @@ function set_nginx_scenario() {
         else
             listen_port=$client_start_port
         fi
-        nginx_conf="$PWD/scenario/$scenario/etc/nginx/${listen_port}-nginx.conf"
+        set_nginx_conf "$PWD/scenario/$scenario/etc/nginx/${listen_port}-nginx.conf"
         nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
     fi
 }
@@ -89,7 +89,7 @@ function render_template() {
     mustache - "$tpl" > "$out"
 }
 
-function list_upstreams() {
+function list_nginx_upstreams() {
     local idx=0
     while test $idx -lt $num_clients; do
         echo "127.0.0.1:$((client_start_port + $idx))"
@@ -104,13 +104,13 @@ function print_nginx_template() {
   "scenario": "$scenario",
   "listen_port": "$listen_port",
   "event_ids": ["a", "b", "c"],
-  "upstreams": $(print_json_array $(list_upstreams))
+  "upstreams": $(print_json_array $(list_nginx_upstreams))
 }
 EOF
 }
 
 function render_nginx_template() {
-    print_nginx_template | render_template "$nginx_conf_tpl" "$nginx_conf"
+    print_nginx_template | render_template "$nginx_conf_tpl" "$(get_nginx_conf)"
 }
 
 function expect_nginx_exit_code() {
@@ -121,30 +121,6 @@ function expect_nginx_exit_code() {
     define_addl_text "nginx output:\n$out"
 }
 
-function run_nginx() {
-    local out=
-    out=$(nginx "$@" -c "$nginx_conf" 2>&1)
-    local exit_code=$?
-    out=$(<<< "$out" grep -v '/var/log/nginx/error.log')
-    expect_nginx_exit_code $exit_code "$out"; to_equal 0
-}
-
-function check_nginx_conf() {
-    run_nginx -t
-}
-
-function start_nginx() {
-    run_nginx
-}
-
-function stop_nginx() {
-    run_nginx -s stop
-}
-
-function reopen_nginx_logs() {
-    run_nginx -s reopen
-}
-
 function reset_all_nginx_logs() {
     stash_nginx_scenario
 
@@ -153,7 +129,7 @@ function reset_all_nginx_logs() {
     : > "$(get_nginx_error_log)"
     reopen_nginx_logs
 
-    for upstream in $(list_upstreams); do
+    for upstream in $(list_nginx_upstreams); do
         set_nginx_scenario "$scenario_base" client
         : > "$(get_nginx_access_log)"
         : > "$(get_nginx_error_log)"
