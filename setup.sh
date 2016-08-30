@@ -28,6 +28,8 @@ function set_nginx_scenario() {
     scenario=${scenario_base}_${nginx_type}
     prev_listen_port=$listen_port
     if test "$nginx_type" = "lb"; then
+        set_nginx_access_log scenario/${scenario}/log/nginx/access.log
+        set_nginx_error_log scenario/${scenario}/log/nginx/error.log
         set_nginx_conf "$PWD/scenario/$scenario/etc/nginx/nginx.conf"
         nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
         listen_port=$lb_listen_port
@@ -37,6 +39,8 @@ function set_nginx_scenario() {
         else
             listen_port=$client_start_port
         fi
+        set_nginx_access_log scenario/${scenario}/log/nginx/${listen_port}-access.log
+        set_nginx_error_log scenario/${scenario}/log/nginx/${listen_port}-error.log
         set_nginx_conf "$PWD/scenario/$scenario/etc/nginx/${listen_port}-nginx.conf"
         nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
     fi
@@ -55,22 +59,6 @@ function pop_nginx_scenario() {
 
 function mustache() {
     "$modules"/.bin/mustache "$@"
-}
-
-function get_nginx_access_log() {
-    if test "$nginx_type" = "lb"; then
-        echo scenario/${scenario}/log/nginx/access.log
-    else
-        echo scenario/${scenario}/log/nginx/${listen_port}-access.log
-    fi
-}
-
-function get_nginx_error_log() {
-    if test "$nginx_type" = "lb"; then
-        echo scenario/${scenario}/log/nginx/error.log
-    else
-        echo scenario/${scenario}/log/nginx/${listen_port}-error.log
-    fi
 }
 
 function clear_nginx_state() {
@@ -113,38 +101,18 @@ function render_nginx_template() {
     print_nginx_template | render_template "$nginx_conf_tpl" "$(get_nginx_conf)"
 }
 
-function expect_nginx_exit_code() {
-    local exit_code=$1
-    local out=$2
-    define_side_a "$exit_code"
-    define_side_a_text "nginx exit code of \"$exit_code\""
-    define_addl_text "nginx output:\n$out"
-}
-
 function reset_all_nginx_logs() {
     stash_nginx_scenario
 
     set_nginx_scenario "$scenario_base" lb
-    : > "$(get_nginx_access_log)"
-    : > "$(get_nginx_error_log)"
-    reopen_nginx_logs
+    truncate_nginx_logs
 
     for upstream in $(list_nginx_upstreams); do
         set_nginx_scenario "$scenario_base" client
-        : > "$(get_nginx_access_log)"
-        : > "$(get_nginx_error_log)"
-        reopen_nginx_logs
+        truncate_nginx_logs
     done
 
     pop_nginx_scenario
-}
-
-function expect_nginx_access_log() {
-    local file=$(get_nginx_access_log)
-    local contents=$(cat "$file")
-    define_side_a "$contents"
-    define_side_a_text "nginx access log $file"
-    define_addl_text "Log contents:\n$contents"
 }
 
 function expect_nginx_routed_upstreams() {
