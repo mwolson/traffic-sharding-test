@@ -22,14 +22,6 @@ stashed_listen_port=
 stashed_nginx_type=
 stashed_scenario_base=
 
-function in_range() {
-    local num=$1
-    local min=$2
-    local max=$3
-    is_numeric "$num" && is_numeric "$min" && is_numeric "$max" && \
-        test $num -ge $min && test $num -le $max
-}
-
 function set_nginx_scenario() {
     scenario_base=$1
     nginx_type=$2
@@ -40,7 +32,7 @@ function set_nginx_scenario() {
         nginx_conf_tpl="${nginx_conf}.tpl"
         listen_port=$lb_listen_port
     else
-        if in_range "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
+        if is_between "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
             ((listen_port++))
         else
             listen_port=$client_start_port
@@ -109,20 +101,6 @@ function list_upstreams() {
     done
 }
 
-function to_json_array() {
-    local first=y
-    echo "["
-    for item in "$@"; do
-        if test -n "$first"; then
-            first=
-        else
-            echo ","
-        fi
-        echo -n "\"${item}\""
-    done
-    echo -e "\n]"
-}
-
 function print_nginx_template() {
     cat <<EOF
 {
@@ -130,7 +108,7 @@ function print_nginx_template() {
   "scenario": "$scenario",
   "listen_port": "$listen_port",
   "event_ids": ["a", "b", "c"],
-  "upstreams": $(to_json_array $(list_upstreams))
+  "upstreams": $(print_json_array $(list_upstreams))
 }
 EOF
 }
