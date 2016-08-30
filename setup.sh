@@ -53,10 +53,6 @@ function pop_nginx_scenario() {
     set_nginx_scenario "$stashed_scenario_base" "$stashed_nginx_type"
 }
 
-function count_lines() {
-    wc -l | awk '{ print $1 }'
-}
-
 function mustache() {
     "$modules"/.bin/mustache "$@"
 }
