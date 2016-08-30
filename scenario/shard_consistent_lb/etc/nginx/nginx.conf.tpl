@@ -7,7 +7,8 @@ events {
 }
 
 http {
-    access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/access.log;
+    log_format upstreamlog '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" to:<$upstream_addr> in:<$request_time>';
+    access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/access.log upstreamlog;
 
     map $uri $shard_key {
       ~^/host/(?<event_id>[^/]+) $event_id;

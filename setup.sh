@@ -15,7 +15,12 @@ listen_port=
 nginx_conf=
 nginx_conf_tpl=
 nginx_type=
+prev_listen_port=
 scenario=
+scenario_base=
+stashed_listen_port=
+stashed_nginx_type=
+stashed_scenario_base=
 
 function in_range() {
     local num=$1
@@ -25,9 +30,11 @@ function in_range() {
         test $num -ge $min && test $num -le $max
 }
 
-function set_scenario() {
-    scenario=${1}_${2}
+function set_nginx_scenario() {
+    scenario_base=$1
     nginx_type=$2
+    scenario=${scenario_base}_${nginx_type}
+    prev_listen_port=$listen_port
     if test "$nginx_type" = "lb"; then
         nginx_conf="$PWD/scenario/$scenario/etc/nginx/nginx.conf"
         nginx_conf_tpl="${nginx_conf}.tpl"
@@ -43,6 +50,17 @@ function set_scenario() {
     fi
 }
 
+function stash_nginx_scenario() {
+    stashed_scenario_base=$scenario_base
+    stashed_nginx_type=$nginx_type
+    stashed_listen_port=$prev_listen_port
+}
+
+function pop_nginx_scenario() {
+    listen_port=$stashed_listen_port
+    set_nginx_scenario "$stashed_scenario_base" "$stashed_nginx_type"
+}
+
 function count_lines() {
     wc -l | awk '{ print $1 }'
 }
@@ -51,15 +69,29 @@ function mustache() {
     "$modules"/.bin/mustache "$@"
 }
 
-function clear_nginx_state() {
+function get_nginx_access_log() {
     if test "$nginx_type" = "lb"; then
-        for file in scenario/$scenario/etc/nginx/*.conf scenario/$scenario/log/nginx/*.log; do
-            rm -f "$file"
-        done
+        echo scenario/${scenario}/log/nginx/access.log
     else
-        for file in scenario/$scenario/etc/nginx/${listen_port}-*.conf scenario/$scenario/log/nginx/${listen_port}-*.log; do
-            rm -f "$file"
-        done
+        echo scenario/${scenario}/log/nginx/${listen_port}-access.log
+    fi
+}
+
+function get_nginx_error_log() {
+    if test "$nginx_type" = "lb"; then
+        echo scenario/${scenario}/log/nginx/error.log
+    else
+        echo scenario/${scenario}/log/nginx/${listen_port}-error.log
+    fi
+}
+
+function clear_nginx_state() {
+    rm -f "$(get_nginx_access_log)" "$(get_nginx_error_log)"
+
+    if test "$nginx_type" = "lb"; then
+        rm -f scenario/$scenario/etc/nginx/*.conf
+    else
+        rm -f scenario/$scenario/etc/nginx/${listen_port}-*.conf
     fi
 }
 
@@ -133,4 +165,34 @@ function start_nginx() {
 
 function stop_nginx() {
     run_nginx -s stop
+}
+
+function reopen_nginx_logs() {
+    run_nginx -s reopen
+}
+
+function reset_all_nginx_logs() {
+    stash_nginx_scenario
+
+    set_nginx_scenario "$scenario_base" lb
+    : > "$(get_nginx_access_log)"
+    : > "$(get_nginx_error_log)"
+    reopen_nginx_logs
+
+    for upstream in $(list_upstreams); do
+        set_nginx_scenario "$scenario_base" client
+        : > "$(get_nginx_access_log)"
+        : > "$(get_nginx_error_log)"
+        reopen_nginx_logs
+    done
+
+    pop_nginx_scenario
+}
+
+function expect_nginx_access_log() {
+    local file=$(get_nginx_access_log)
+    local contents=$(cat "$file")
+    define_side_a "$contents"
+    define_side_a_text "nginx access log $file"
+    define_addl_text "Log contents:\n$contents"
 }
