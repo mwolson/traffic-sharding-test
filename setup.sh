@@ -196,3 +196,20 @@ function expect_nginx_access_log() {
     define_side_a_text "nginx access log $file"
     define_addl_text "Log contents:\n$contents"
 }
+
+function expect_nginx_routed_upstreams() {
+    local file=$(get_nginx_access_log)
+    expect_nginx_access_log
+    local upstreams=$(get_side_a | sed 's/.*to:<([^>]+)>.*/\1/')
+    define_side_a "$upstreams"
+    define_side_a_text "Proxy routing to upstream servers in nginx access log $file"
+    define_addl_text "Entries:\n$upstreams"
+}
+
+function to_be_consistent() {
+    local first=$(get_side_a | first_line)
+    local uniques=$(get_side_a | sort -u)
+    if test "$first" != "$uniques"; then
+        fail "Expected $(get_side_a_text) to be consistent but it was not"
+    fi
+}

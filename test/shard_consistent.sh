@@ -22,7 +22,7 @@ for upstream in $(list_upstreams); do
     start_nginx
 done
 
-it "verifies that multiple path patterns with same eventId are sharded together"
+it "runs one-off requests to verify that multiple path patterns with same eventId are sharded together"
 
 record_curl http://127.0.0.1:$lb_listen_port/event/a
 expect_http_status; to_equal 200
@@ -34,7 +34,7 @@ record_curl http://127.0.0.1:$lb_listen_port/host/fail
 expect_http_status; to_equal 404
 
 set_nginx_scenario ${outer_scenario} lb
-expect_nginx_access_log; to_not_be_empty
+expect_nginx_routed_upstreams; to_be_consistent
 
 reset_all_nginx_logs
 expect_nginx_access_log; to_be_empty
