@@ -4,23 +4,11 @@
 
 describe "Load test with sharding"
 
-outer_scenario=shard_consistent
+set_nginx_scenario_base shard_consistent
 
-it "starts nginx LB"
+it "starts nginx LB and clients"
 
-set_nginx_scenario ${outer_scenario} lb
-clear_nginx_state
-render_nginx_template
-start_nginx
-
-it "starts nginx clients"
-
-for upstream in $(list_nginx_upstreams); do
-    set_nginx_scenario ${outer_scenario} client
-    clear_nginx_state
-    render_nginx_template
-    start_nginx
-done
+start_all_nginx_instances
 
 it "runs one-off requests to verify that multiple path patterns with same eventId are sharded together"
 
@@ -33,20 +21,20 @@ expect_http_status; to_equal 200
 record_curl http://127.0.0.1:$lb_listen_port/host/fail
 expect_http_status; to_equal 404
 
-set_nginx_scenario ${outer_scenario} lb
+set_nginx_scenario $scenario_base lb
 expect_nginx_routed_upstreams; to_be_consistent
 
 reset_all_nginx_logs
 expect_nginx_access_log; to_be_empty
 
-it "stops nginx LB"
+it "runs a wrk test for 10 seconds"
 
-set_nginx_scenario ${outer_scenario} lb
-stop_nginx
+record_wrk --latency -c 500 -t 1 -d 10s --timeout 10s http://127.0.0.1:$lb_listen_port/event/a
+expect_wrk_socket_errors; to_be_empty
 
-it "stops nginx clients"
+set_nginx_scenario $scenario_base lb
+expect_nginx_routed_upstreams; to_be_consistent
 
-for upstream in $(list_nginx_upstreams); do
-    set_nginx_scenario ${outer_scenario} client
-    stop_nginx
-done
+it "stops nginx instances"
+
+stop_all_nginx_instances

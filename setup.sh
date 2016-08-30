@@ -21,6 +21,11 @@ scenario_base=
 stashed_listen_port=
 stashed_nginx_type=
 stashed_scenario_base=
+wrk_output=
+
+function set_nginx_scenario_base() {
+    scenario_base=$1
+}
 
 function set_nginx_scenario() {
     scenario_base=$1
@@ -101,6 +106,34 @@ function render_nginx_template() {
     print_nginx_template | render_template "$nginx_conf_tpl" "$(get_nginx_conf)"
 }
 
+function start_all_nginx_instances() {
+    set_nginx_scenario "$scenario_base" lb
+    : $(stop_nginx)
+    clear_nginx_state
+    render_nginx_template
+    start_nginx
+
+    for upstream in $(list_nginx_upstreams); do
+        set_nginx_scenario "$scenario_base" client
+        : $(stop_nginx)
+        clear_nginx_state
+        render_nginx_template
+        start_nginx
+    done
+}
+
+function stop_all_nginx_instances() {
+    local permissive=$1
+
+    set_nginx_scenario "$scenario_base" lb
+    stop_nginx
+
+    for upstream in $(list_nginx_upstreams); do
+        set_nginx_scenario "$scenario_base" client
+        stop_nginx
+    done
+}
+
 function reset_all_nginx_logs() {
     stash_nginx_scenario
 
@@ -117,9 +150,24 @@ function reset_all_nginx_logs() {
 
 function expect_nginx_routed_upstreams() {
     local file=$(get_nginx_access_log)
-    expect_nginx_access_log
-    local upstreams=$(get_side_a | sed 's/.*to:<([^>]+)>.*/\1/')
+    local upstreams=$(< "$file" sed 's/.*to:<([^>]+)>.*/\1/')
     define_side_a "$upstreams"
     define_side_a_text "routing to upstream servers in nginx access log $file"
     define_addl_text "Entries:\n$upstreams"
+}
+
+function record_wrk() {
+    _reset_assertion_state
+    wrk_output=$(wrk "$@")
+    local status=$?
+    if test $status -ne 0; then
+        fail "wrk command failed with status code $status"
+    fi
+}
+
+function expect_wrk_socket_errors() {
+    local dropped=$(<<< "$wrk_output" grep -i 'socket errors' | sed 's/^ +//')
+    define_side_a "$dropped"
+    define_side_a_text "number of socket errors counted by wrk"
+    define_addl_text "${dropped}\n\nwrk output:\n$wrk_output"
 }
