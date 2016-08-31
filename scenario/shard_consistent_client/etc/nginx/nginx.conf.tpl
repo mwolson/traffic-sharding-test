@@ -9,6 +9,11 @@ events {
 http {
     access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/{{listen_port}}-access.log;
 
+    sendfile on;
+    aio threads;
+    tcp_nopush on;
+    tcp_nodelay on;
+
     map $uri $event_id {
       ~^/host/(?<match>[^/]+) $match;
       ~^/event/(?<match>[^/]+) $match;
