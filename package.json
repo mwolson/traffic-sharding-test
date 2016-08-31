@@ -17,7 +17,7 @@
     "rspec"
   ],
   "dependencies": {
-    "barrt": "^1.4.0",
+    "barrt": "^1.4.3",
     "barrt-curl": "^2.0.0",
     "barrt-nginx": "^1.0.0",
     "barrt-wrk": "^1.0.0",
