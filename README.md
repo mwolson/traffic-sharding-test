@@ -8,7 +8,7 @@
 
 ## Setup
 
-- Install nginx, nodejs, npm, wrk
+- Install nginx, nodejs, npm, [wrk](https://github.com/wg/wrk)
 - `npm up`
 - Edit `setup.sh`
 

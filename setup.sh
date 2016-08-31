@@ -5,6 +5,7 @@ modules=$(dirname "$BASH_SOURCE")/node_modules
 . "$modules"/barrt/setup.sh
 . "$modules"/barrt-curl/setup.sh
 . "$modules"/barrt-nginx/setup.sh
+. "$modules"/barrt-wrk/setup.sh
 
 # Setup
 lb_listen_port=10000
@@ -12,7 +13,6 @@ client_start_port=11000
 num_clients=3
 
 # Initial state
-_inspect_next_wrk=
 listen_port=
 nginx_conf_tpl=
 nginx_type=
@@ -22,7 +22,6 @@ scenario_base=
 stashed_listen_port=
 stashed_nginx_type=
 stashed_scenario_base=
-wrk_output=
 
 function set_nginx_scenario_base() {
     scenario_base=$1
@@ -155,31 +154,4 @@ function expect_nginx_routed_upstreams() {
     define_side_a "$upstreams"
     define_side_a_text "routing to upstream servers in nginx access log $file"
     define_addl_text "Entries:\n$upstreams"
-}
-
-function inspect_next_wrk() {
-    _inspect_next_wrk=true
-}
-
-function record_wrk() {
-    _reset_assertion_state
-    wrk_output=$(wrk "$@")
-    local status=$?
-    addl_text=$wrk_output
-
-    if test -n "$_inspect_next_wrk"; then
-        _inspect_next_wrk=
-        soft_fail "Inspecting wrk command invoked like:$(echo_quoted wrk "$@")"
-    fi
-
-    if test $status -ne 0; then
-        fail "wrk command failed with status code $status"
-    fi
-}
-
-function expect_wrk_socket_errors() {
-    local dropped=$(<<< "$wrk_output" grep -i 'socket errors' | sed 's/^ +//')
-    define_side_a "$dropped"
-    define_side_a_text "number of socket errors counted by wrk"
-    define_addl_text "wrk socket errors:\n${dropped}\n\nwrk output:\n$wrk_output"
 }
