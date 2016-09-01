@@ -166,7 +166,7 @@ function get_nginx_routing_summary() {
 
 function get_nginx_current_shard() {
     local file=$(get_nginx_access_log)
-    < "$file" grep '" 200' | last_line | sed 's/.*to:<(?:[^>+]+,)?[^>]+:([^:>]+)>.*/\1/'
+    < "$file" grep '" 200' | last_line | sed 's/.*to:<([^>]+,)?[^>]+:([^:>]+)>.*/\2/'
 }
 
 function stop_routed_nginx_client() {
