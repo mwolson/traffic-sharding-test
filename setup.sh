@@ -15,7 +15,7 @@ function on_os_x() {
 lb_listen_port=10000
 client_start_port=11000
 num_clients=3
-wrk_connections=$(if on_os_x; then echo 200; else echo 500; fi)
+wrk_connections=$(if on_os_x; then get_wrk_os_x_safe_connection_limit; else echo 500; fi)
 
 # Initial state
 listen_port=
@@ -180,6 +180,7 @@ function stop_routed_nginx_client() {
         set_nginx_scenario "$scenario_base" client $shard
         stop_nginx
         pop_nginx_scenario
+        echo "    - killed shard $shard"
     fi
 }
 
