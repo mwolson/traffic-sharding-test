@@ -148,9 +148,27 @@ function reset_all_nginx_logs() {
     pop_nginx_scenario
 }
 
-function expect_nginx_routed_upstreams() {
+function get_nginx_routed_upstreams() {
     local file=$(get_nginx_access_log)
-    local upstreams=$(< "$file" sed 's/.*to:<([^>]+)>.*/\1/')
+    < "$file" sed 's/.*to:<([^>]+)>.*/\1/'
+}
+
+function get_nginx_uniq_routed_path_status_upstreams() {
+    local file=$(get_nginx_access_log)
+    < "$file" sed 's/.*("GET[^"]+" +[0-9]+).*to:<([^>]+)>.*/\1 \2/' | uniq -c
+}
+
+function expect_nginx_uniq_routed_upstreams() {
+    local file=$(get_nginx_access_log)
+    local upstreams=$(get_nginx_routed_upstreams | uniq)
+    define_side_a "$upstreams"
+    define_side_a_text "routing to upstream servers in nginx access log $file"
+    define_addl_text "Entries:\n$upstreams"
+}
+
+function expect_nginx_uniq_routed_path_status_upstreams() {
+    local file=$(get_nginx_access_log)
+    local upstreams=$(get_nginx_uniq_routed_path_status_upstreams)
     define_side_a "$upstreams"
     define_side_a_text "routing to upstream servers in nginx access log $file"
     define_addl_text "Entries:\n$upstreams"
