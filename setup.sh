@@ -7,10 +7,15 @@ modules=$(dirname "$BASH_SOURCE")/node_modules
 . "$modules"/barrt-nginx/setup.sh
 . "$modules"/barrt-wrk/setup.sh
 
+function on_os_x() {
+    test "$(uname -s)" = "Darwin"
+}
+
 # Setup
 lb_listen_port=10000
 client_start_port=11000
 num_clients=3
+wrk_connections=$(if on_os_x; then echo 200; else echo 500; fi)
 
 # Initial state
 listen_port=

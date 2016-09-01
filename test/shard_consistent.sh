@@ -33,19 +33,30 @@ in_n_seconds 2 stop_routed_nginx_client
 in_n_seconds 4 stop_routed_nginx_client
 
 inspect_next_wrk
-record_wrk --latency -c 500 -t 1 -d 10s --timeout 10s http://127.0.0.1:$lb_listen_port/event/a
+
+if on_os_x; then
+    # don't try to reuse connections, since there's an issue with OS X kqueue bombing when a shard is brought down
+    record_wrk --latency -H "Connection: close" \
+        -c "$wrk_connections" -t 1 -d 10s --timeout 10s http://127.0.0.1:$lb_listen_port/event/a
+else
+    record_wrk --latency -c "$wrk_connections" -t 1 -d 10s --timeout 10s http://127.0.0.1:$lb_listen_port/event/a
+fi
+
 expect_wrk_total_requests; to_be_greater_than 1000
 
 it "had no socket errors"
 
-expect_wrk_socket_errors; to_be_empty
+if ! on_os_x; then
+    expect_wrk_socket_errors; to_be_empty
+fi
+
 expect_wrk_failed_requests; to_be_empty
 
 it "successfully routed to an available sharded upstream for entire duration of test"
 
 record_nginx_routing_summary
 request_200s_before_termination=$(get_nginx_routing_summary | sum_consecutive_200s)
-expect_wrk_total_requests; to_be_less_than "$request_200s_before_termination"
+expect_wrk_total_requests; to_be_less_than_or_equal_to "$request_200s_before_termination"
 
 it "occasionally retried all downed shards"
 
