@@ -27,17 +27,28 @@ expect_nginx_uniq_routed_upstreams; to_be_consistent
 reset_all_nginx_logs
 expect_nginx_access_log; to_be_empty
 
-it "runs a wrk test for 10 seconds"
+it "runs a wrk test for 10 seconds, stopping current nginx clients after 2 and 4 seconds"
+
+in_n_seconds 2 stop_routed_nginx_client
+in_n_seconds 4 stop_routed_nginx_client
 
 inspect_next_wrk
 record_wrk --latency -c 500 -t 1 -d 10s --timeout 10s http://127.0.0.1:$lb_listen_port/event/a
-expect_wrk_socket_errors; to_be_empty
 expect_wrk_total_requests; to_be_greater_than 1000
 
-it "successfully routed to first available sharded upstream for test duration"
+it "had no socket errors"
 
-request_200s_before_termination=$(get_nginx_uniq_routed_path_status_upstreams | first_line | grep 'GET.*200' | awk '{ print $1; }')
+expect_wrk_socket_errors; to_be_empty
+
+it "successfully routed to an available sharded upstream for entire duration of test"
+
+record_nginx_routing_summary
+request_200s_before_termination=$(get_nginx_routing_summary | sum_consecutive_200s)
 expect_wrk_total_requests; to_be_less_than "$request_200s_before_termination"
+
+it "occasionally retried all downed shards"
+
+expect_nginx_routing_summary; to_match "200 127.0.0.1:[0-9]+, 127.0.0.1:[0-9]+, 127.0.0.1:[0-9]+"
 
 it "stops nginx instances"
 

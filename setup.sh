@@ -15,6 +15,7 @@ num_clients=3
 # Initial state
 listen_port=
 nginx_conf_tpl=
+nginx_routing_summary=
 nginx_type=
 prev_listen_port=
 scenario=
@@ -30,6 +31,7 @@ function set_nginx_scenario_base() {
 function set_nginx_scenario() {
     scenario_base=$1
     nginx_type=$2
+    local user_listen_port=$3
     scenario=${scenario_base}_${nginx_type}
     prev_listen_port=$listen_port
     if test "$nginx_type" = "lb"; then
@@ -39,7 +41,9 @@ function set_nginx_scenario() {
         nginx_conf_tpl="$PWD/scenario/$scenario/etc/nginx/nginx.conf.tpl"
         listen_port=$lb_listen_port
     else
-        if is_between "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
+        if test -n "$user_listen_port"; then
+            listen_port=$user_listen_port
+        elif is_between "$listen_port" "$client_start_port" $(($client_start_port + $num_clients - 2)); then
             ((listen_port++))
         else
             listen_port=$client_start_port
@@ -123,14 +127,12 @@ function start_all_nginx_instances() {
 }
 
 function stop_all_nginx_instances() {
-    local permissive=$1
-
     set_nginx_scenario "$scenario_base" lb
-    stop_nginx
+    : $(stop_nginx)
 
     for upstream in $(list_nginx_upstreams); do
         set_nginx_scenario "$scenario_base" client
-        stop_nginx
+        : $(stop_nginx)
     done
 }
 
@@ -148,14 +150,34 @@ function reset_all_nginx_logs() {
     pop_nginx_scenario
 }
 
+function record_nginx_routing_summary() {
+    local file=$(get_nginx_access_log)
+    nginx_routing_summary=$(< "$file" sed 's/.*("GET[^"]+" +[0-9]+).*to:<([^>]+)>.*/\1 \2/' | uniq -c)
+}
+
+function get_nginx_routing_summary() {
+    echo "$nginx_routing_summary"
+}
+
+function get_nginx_current_shard() {
+    local file=$(get_nginx_access_log)
+    < "$file" last_line | sed 's/.*to:<[^>]+:([^:>]+)>.*/\1/'
+}
+
+function stop_routed_nginx_client() {
+    stash_nginx_scenario
+    set_nginx_scenario "$scenario_base" client $(get_nginx_current_shard)
+    stop_nginx
+    pop_nginx_scenario
+}
+
 function get_nginx_routed_upstreams() {
     local file=$(get_nginx_access_log)
     < "$file" sed 's/.*to:<([^>]+)>.*/\1/'
 }
 
-function get_nginx_uniq_routed_path_status_upstreams() {
-    local file=$(get_nginx_access_log)
-    < "$file" sed 's/.*("GET[^"]+" +[0-9]+).*to:<([^>]+)>.*/\1 \2/' | uniq -c
+function sum_consecutive_200s() {
+    awk '{ if (/" 200/) {sum+=$1} else {exit} }; END{print sum}'
 }
 
 function expect_nginx_uniq_routed_upstreams() {
@@ -166,10 +188,10 @@ function expect_nginx_uniq_routed_upstreams() {
     define_addl_text "Entries:\n$upstreams"
 }
 
-function expect_nginx_uniq_routed_path_status_upstreams() {
+function expect_nginx_routing_summary() {
     local file=$(get_nginx_access_log)
-    local upstreams=$(get_nginx_uniq_routed_path_status_upstreams)
-    define_side_a "$upstreams"
-    define_side_a_text "routing to upstream servers in nginx access log $file"
-    define_addl_text "Entries:\n$upstreams"
+    local first_20=$(<<< "$nginx_routing_summary" head -n 20)
+    define_side_a "$nginx_routing_summary"
+    define_side_a_text "routing summary to upstream servers in nginx access log $file"
+    define_addl_text "Routing summary (first 20 lines printed):\n${first_20}"
 }
