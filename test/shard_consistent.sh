@@ -39,6 +39,7 @@ expect_wrk_total_requests; to_be_greater_than 1000
 it "had no socket errors"
 
 expect_wrk_socket_errors; to_be_empty
+expect_wrk_failed_requests; to_be_empty
 
 it "successfully routed to an available sharded upstream for entire duration of test"
 

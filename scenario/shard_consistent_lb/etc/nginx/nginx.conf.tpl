@@ -11,7 +11,6 @@ http {
     access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/access.log upstreamlog;
 
     sendfile on;
-    aio threads;
     tcp_nopush on;
     tcp_nodelay on;
 

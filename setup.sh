@@ -161,14 +161,21 @@ function get_nginx_routing_summary() {
 
 function get_nginx_current_shard() {
     local file=$(get_nginx_access_log)
-    < "$file" last_line | sed 's/.*to:<[^>]+:([^:>]+)>.*/\1/'
+    < "$file" grep '" 200' | last_line | sed 's/.*to:<(?:[^>+]+,)?[^>]+:([^:>]+)>.*/\1/'
 }
 
 function stop_routed_nginx_client() {
     stash_nginx_scenario
-    set_nginx_scenario "$scenario_base" client $(get_nginx_current_shard)
-    stop_nginx
-    pop_nginx_scenario
+    local shard=$(get_nginx_current_shard)
+
+    if test -z "$shard"; then
+        pop_nginx_scenario
+        fail "Can't figure out which shard to stop"
+    else
+        set_nginx_scenario "$scenario_base" client $shard
+        stop_nginx
+        pop_nginx_scenario
+    fi
 }
 
 function get_nginx_routed_upstreams() {

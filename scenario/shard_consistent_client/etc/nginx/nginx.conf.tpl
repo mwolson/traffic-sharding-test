@@ -10,7 +10,6 @@ http {
     access_log {{{pwd}}}/scenario/{{{scenario}}}/log/nginx/{{listen_port}}-access.log;
 
     sendfile on;
-    aio threads;
     tcp_nopush on;
     tcp_nodelay on;
 
